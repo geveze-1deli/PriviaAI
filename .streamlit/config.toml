@@ -1,0 +1,13 @@
+[theme]
+# Tarayıcı ne derse desin, 'dark' temayı temel al
+base="dark"
+
+# Privia AI'nın ana renkleri
+primaryColor="#ff4b4b"
+backgroundColor="#0e1117"
+secondaryBackgroundColor="#161b22"
+textColor="#ffffff"
+
+[server]
+# Menüdeki o "Görünüm" ayarlarını bazen tamamen gizlemek istersen (isteğe bağlı)
+toolbarMode = "minimal"
