@@ -78,7 +78,7 @@ else:
         st.subheader("🤖 PriviaAI Akıllı Karar Destek Sistemi")
         
         if "messages" not in st.session_state:
-            st.session_state.messages = [{"role": "assistant", "content": "Selam hacı! Ben PriviaAI. Verileri analiz edebilir veya sorularını yanıtlayabilirim."}]
+            st.session_state.messages = [{"role": "assistant", "content": "Merhaba. Ben PriviaAI. Verileri analiz edebilir veya sorularını yanıtlayabilirim."}]
 
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
