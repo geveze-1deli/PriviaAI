@@ -3,18 +3,21 @@ import json
 import requests
 from dotenv import load_dotenv
 
+# Hugging Face veya yerel ortam fark etmeksizin anahtarı güvenli okuma altyapısı
 su_an_bulundugun_yer = os.path.dirname(os.path.abspath(__file__))
 ana_sayfa_katmani = os.path.dirname(su_an_bulundugun_yer)
 proje_kok_dizini = os.path.dirname(ana_sayfa_katmani)
 
 dotenv_yolu = os.path.join(proje_kok_dizini, '.env')
-load_dotenv(dotenv_path=dotenv_yolu)
+if os.path.exists(dotenv_yolu):
+    load_dotenv(dotenv_path=dotenv_yolu)
 
+# Hugging Face Secret kasasından veya yerel .env'den anahtarı çeker
 API_KEY = os.environ.get("OPENAI_API_KEY")
 
 def yapay_zeka_isim_motoru(orijinal_metin):
     """
-    Metni analiz ederek uydurma ilişki ağlarını ("Keloğlan'ın karısı" vb.) 
+    Metni analiz ederek uydurma ilişki ağlarını  
     ve cins isimleri ("Padişah", "Annesi" vb.) tamamen eleyen, 
     sadece gerçek şahıs özel isimlerini bulan ultra kesinlikli motor.
     """
@@ -28,16 +31,17 @@ def yapay_zeka_isim_motoru(orijinal_metin):
     }
     
     sistem_talimati = """
-    Sen PriviaAI siber güvenlik sisteminin Şahıs İsmi Tespit Motorusun. Sana verilen metindeki GERÇEK İNSAN ÖZEL İSİMLERİNİ bulmalısın.
+    Sen PriviaAI siber güvenlik ve veri analizi sisteminin ultra kesinlikli "Şahıs İsmi Tespit Motoru"sun. 
+    Sana verilen metindeki kişisel veri niteliği taşıyan GERÇEK İNSAN ÖZEL İSİMLERİNİ (Örn: Ali Yılmaz, Fatma, Saim Sakaoğlu) tespit etmekle görevlisin.
     
-    YASAKLAR VE KESİN KURALLAR:
-    1. "Annesi", "Padişah", "Arap", "Kız", "Koca nine", "Kadın", "Zebella", "Tellâl", "Cariye" gibi kelimeler ÖZEL İNSAN İSMİ DEĞİLDİR, unvan veya roldür. Bunları LİSTEYE ALMAK KESİNLİKLE YASAKTIR.
-    2. "Keloğlan'ın karısı", "Keloğlan'ın bacısı", "Keloğlan'ın dostu" gibi iyelik takısı almış ilişki ve akrabalık tanımlarını LİSTEYE ASLA ALMA. Metinde o kişilerin gerçek bir özel ismi (Örn: Ali, Fatma) geçmiyorsa onları tamamen pas geç.
-    3. "Zümrüt-ü Anka" bir kuş/yaratık adıdır, insan ismi değildir. ASLA ALMA.
-    4. Metinde açıkça yazmayan hiçbir ismi kafandan uydurma, türetme.
-    5. Çıktıyı sadece saf isimlerden oluşan, aralarında virgül olan temiz bir liste olarak ver. (Örn: Keloğlan, Saim Sakaoğlu)
-    6. Eğer metinde hiçbir gerçek şahıs özel ismi yoksa SADECE "BOŞ" yaz. Cümle kurma.
+    KESİN UYULMASI GEREKEN FİLTRELEME KURALLARI:
+    1. Sadece gerçek insan özel isimlerini al. "Annesi", "Padişah", "Müdür", "Arap", "Kız", "Kadın", "Memur" gibi unvan, rol, meslek veya cins isimlerini KESİNLİKLE LİSTEYE ALMA.
+    2. "Ahmet'in babası", "Mehmet'in arkadaşı" gibi iyelik/akrabalık/ilişki belirten tamlamaları yapısal olarak pas geç. Metinde o kişilerin yalın ve gerçek bir özel ismi geçmiyorsa hiçbir şekilde listeye ekleme.
+    3. Metinde açıkça yer almayan, ima edilen veya türetilen hiçbir ismi kafandan uydurma.
+    4. Çıktı Biçimi: Bulguları sadece aralarında virgül olan, temiz bir isim listesi olarak dön (Örn: Ahmet Yılmaz, Mustafa, Ayşe).
+    5. Eğer metinde KVKK kapsamında risk oluşturacak hiçbir gerçek şahıs özel ismi yoksa SADECE "BOŞ" yaz. Asla açıklama cümlesi kurma.
     """
+    
 
     payload = {
         "model": "gpt-4o-mini",
@@ -62,11 +66,20 @@ def yapay_zeka_isim_motoru(orijinal_metin):
             yasakli_kelimeler = ["annesi", "padişah", "arap", "karısı", "bacısı", "kardeşi", "sevgilisi", "düşmanı", "komşusu", "arkadaşı", "akrabası", "dostu", "anka", "kuşu"]
             
             for isim in ham_isimler:
+                # Kesme işaretinden sonrasını temizle (Örn: "Ahmet'in" -> "Ahmet" yapar, ismi çöpe atmaz)
+                if "'" in isim:
+                    isim = isim.split("'")[0].strip()
+                if "’" in isim:
+                    isim = isim.split("’")[0].strip()
+                    
                 isim_alt = isim.lower()
                 
-                if "’" in isim or "'" in isim or any(y in isim_alt for y in yasakli_kelimeler):
+                # Yasaklı kelime kontrolü
+                if any(y in isim_alt for y in yasakli_kelimeler) or len(isim) < 2:
                     continue
-                temiz_isimler.append(isim)
+                
+                if isim not in temiz_isimler:
+                    temiz_isimler.append(isim)
                 
             return temiz_isimler
         return []
@@ -74,19 +87,33 @@ def yapay_zeka_isim_motoru(orijinal_metin):
         return []
 
 def gemini_analiz_ve_sohbet(kullanici_mesajı, motor_sonuclari):
-    
-    if not API_KEY: return ""
+    if not API_KEY: 
+        return "Sistem hatası: API anahtarı bulunamadı."
+        
     url = "https://api.openai.com/v1/chat/completions"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
+    
+    # Yapay zekanın ne iş yapacağını ve kullanıcıya nasıl cevap vereceğini netleştirdik
+    sistem_talimati = (
+        f"Sen PriviaAI siber güvenlik ve KVKK uzmanı yapay zekasısın. "
+        f"Sistem tarafından tespit edilen mevcut şahıs isimleri şunlardır: {motor_sonuclari}. "
+        f"Kullanıcının sana sorduğu sorulara bu bulgular ışığında, bilgilendirici, net ve kurumsal bir dille cevap ver."
+    )
+    
     payload = {
         "model": "gpt-4o-mini",
         "messages": [
-            {"role": "system", "content": f"Sen PriviaAI KVKK uzmanısın. Mevcut sonuçlar: {motor_sonuclari}"},
+            {"role": "system", "content": sistem_talimati},
             {"role": "user", "content": kullanici_mesajı}
         ],
         "temperature": 0.7
     }
     try:
-        res = requests.post(url, headers=headers, json=payload).json()
-        return res["choices"][0]["message"]["content"].strip()
-    except: return ""
+        response = requests.post(url, headers=headers, json=payload)
+        res = response.json()
+        if response.status_code == 200:
+            return res["choices"][0]["message"]["content"].strip()
+        else:
+            return f"Hata Oluştu: {res.get('error', {}).get('message', 'Bilinmeyen hata')}"
+    except Exception as e: 
+        return f"Bağlantı hatası: {str(e)}"
